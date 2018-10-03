@@ -80,6 +80,8 @@ struct ve_dma_req_hdl_struct {
 	struct ve_dma_hdl_struct *engine;/*!< DMA engine on which this request is posted */
 	pthread_cond_t cond;/*!< condition variable to wait for status of DMA reqlist entries in reqlist to change */
 	struct list_head reqlist;/*!< a list of DMA reqlist entries composing this request */
+	struct list_head ptrans_src;/*!< list of blocks with physical translation info for src addresses*/
+	struct list_head ptrans_dst;/*!< list of blocks with physical translation info for dst addresses*/
 };
 
 /* in dma_intr.c */

@@ -74,4 +74,5 @@ ve_dma_status_t ve_dma_timedwait(ve_dma_req_hdl *, const struct timespec *);
 int ve_dma_req_free(ve_dma_req_hdl *);
 void ve_dma_terminate(ve_dma_req_hdl *);
 void ve_dma_terminate_all(ve_dma_hdl *);
+int ve_dma_lock_post_start(ve_dma_req_hdl *);
 #endif

@@ -34,6 +34,7 @@ void ve_dma_free_used_desc(ve_dma_hdl *, int);
 void ve_dma_reqlist_free(ve_dma_req_hdl *);
 ve_dma_status_t ve_dma_reqlist_test(ve_dma_req_hdl *);
 int ve_dma_reqlist_post(ve_dma_req_hdl *);
+int ve_dma_reqlist_lock_and_post(ve_dma_req_hdl *);
 int ve_dma_reqlist_drain_waiting_list(ve_dma_hdl *);
 void ve_dma_reqlist__cancel(ve_dma_req_hdl *);
 void ve_dma_finish_reqlist_entry(ve_dma_reqlist_entry *, uint64_t, int);
