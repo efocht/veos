@@ -23,6 +23,7 @@
 #ifndef VE_VEOS_DMA_REQUEST_PRIVATE_H
 #define VE_VEOS_DMA_REQUEST_PRIVATE_H
 #include <libved.h>
+#include <time.h>
 
 #include "ve_list.h"
 
@@ -43,10 +44,21 @@ enum ve_dma_reqlist_entry_status {
 struct ve_dma__addr {
 	uint64_t type_hw;/*!< address type on DMA descriptor */
 	uint64_t addr;/*!< address value */
-	void (*unpin)(vedl_handle *, uint64_t);/*!< unpin function */
-	int32_t unpin_pgsz;/*!< unpin page size */
 };
 typedef struct ve_dma__addr ve_dma__addr;
+
+struct ve_dma__block;
+typedef struct ve_dma__block ve_dma__block;
+struct ve_dma__block {
+	struct list_head list;/*!< for chaining blocks */
+	uint64_t vaddr;  /*!< start virtual address value */
+	uint64_t length; /*!< length of block */
+	uint64_t *paddr; /*!< array with physical address of pages */
+	uint32_t npages;
+	int pgsz;	 /*!< page size */
+	void (*unpin)(vedl_handle *, ve_dma__block *);/*!< unpin function */
+	struct timespec ts, te; /* block creation start and end times */
+};
 
 /**
  * @brief DMA reqlist entry, a physical request to be put on a descriptor
@@ -61,6 +73,7 @@ struct ve_dma_reqlist_entry {
 	uint64_t status_hw;/*!< the value of the word 0 of DMA descriptor */
 	enum ve_dma_reqlist_entry_status status;/*!< status of this DMA reqlist entry */
 	int entry;/* 0, 1, ..., VE_DMA_NUM_DESC - 1, or -1 (not posted) */
+	struct timespec tc, tp, te; /* request entry create, post, end time */
 };
 
 /**
