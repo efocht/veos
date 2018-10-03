@@ -211,7 +211,9 @@ ve_dma_req_hdl *ve_dma_post_p_va(ve_dma_hdl *hdl, ve_dma_addrtype_t srctype,
 {
 	ve_dma_req_hdl *ret;
 	int64_t n_dma_req;
+#if 1
 	int rv_post;
+#endif
 
 	VE_DMA_TRACE("called");
 	VE_DMA_DEBUG("DMA request is posted. "
@@ -265,6 +267,8 @@ ve_dma_req_hdl *ve_dma_post_p_va(ve_dma_hdl *hdl, ve_dma_addrtype_t srctype,
 	ret->engine = hdl;
 	pthread_cond_init(&ret->cond, NULL);
 	INIT_LIST_HEAD(&ret->reqlist);
+	INIT_LIST_HEAD(&ret->ptrans_src);
+	INIT_LIST_HEAD(&ret->ptrans_dst);
 
 	n_dma_req = ve_dma_reqlist_make(ret, srctype, srcpid, srcaddr, dsttype,
 					dstpid, dstaddr, length);
@@ -280,36 +284,13 @@ ve_dma_req_hdl *ve_dma_post_p_va(ve_dma_hdl *hdl, ve_dma_addrtype_t srctype,
 		return NULL;
 	}
 
-	/*
-	 * post DMA requests
-	 */
-	pthread_mutex_lock(&hdl->mutex);
-	if (hdl->should_stop) {
-		VE_DMA_ERROR("DMA post failed because DMA engine is now "
-			     "closing");
-		goto error_dma_engine;
-	}
-
-	rv_post = ve_dma_reqlist_post(ret);
+	rv_post = ve_dma_lock_post_start(ret);
 	if (rv_post < 0) {
-		goto error_post;
+		free(ret);
+		return NULL;
 	}
-	/* start DMA engine */
-	ve_dma_hw_start(hdl->vedl_handle, hdl->control_regs);
-
-	veos_commit_rdawr_order();
-	pthread_mutex_unlock(&hdl->mutex);
 
 	return ret;
-
-error_post:
-	ve_dma__terminate_nolock(ret);
-error_dma_engine:
-	veos_commit_rdawr_order();
-	pthread_mutex_unlock(&hdl->mutex);
-	ve_dma_reqlist_free(ret);
-	free(ret);
-	return NULL;
 }
 
 /**
@@ -590,4 +571,46 @@ void ve_dma_terminate_all(ve_dma_hdl *hdl)
 	veos_commit_rdawr_order();
 	pthread_mutex_unlock(&hdl->mutex);
 
+}
+
+/**
+ * @brief Lock DMA engine, post requests from reqlist and start the engine
+ *
+ * @param[in] req DMA request handle
+ *
+ * @return 0 on success, Non-zero on failure.
+ */
+int ve_dma_lock_post_start(ve_dma_req_hdl *req)
+{
+	int rv_post = 0;
+	ve_dma_hdl *hdl = req->engine;
+
+	/*
+	 * post DMA requests
+	 */
+	pthread_mutex_lock(&hdl->mutex);
+	if (hdl->should_stop) {
+		VE_DMA_ERROR("DMA post failed because DMA engine is now "
+			     "closing");
+		goto error_dma_engine;
+	}
+	
+	rv_post = ve_dma_reqlist_post(req);
+	if (rv_post < 0) {
+		goto error_post;
+	}
+	/* start DMA engine */
+	ve_dma_hw_start(hdl->vedl_handle, hdl->control_regs);
+	
+	veos_commit_rdawr_order();
+	pthread_mutex_unlock(&hdl->mutex);
+	return 0;
+
+error_post:
+	ve_dma__terminate_nolock(req);
+error_dma_engine:
+	veos_commit_rdawr_order();
+	pthread_mutex_unlock(&hdl->mutex);
+	ve_dma_reqlist_free(req);
+	return -1;
 }
